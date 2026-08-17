@@ -7561,3 +7561,9 @@ ChestRewardConfig.icon(단일 Sprite)을 쓰는 곳 3군데 확인:
 - 작업 도중 MCP-Unity 연결이 끊겨(원인 불명, 서버 세션 자체가 재시작된 것으로 추정 — session_id가 바뀌어 있었음) 한동안 모든 Unity 호출이 실패. 사용자가 재연결한 뒤 재개함
 - **EditMode 테스트를 이번엔 실행하지 않음** — AdventureScene1이 계속 isDirty=true 상태(사용자가 에디터에서 직접 작업 중인 것으로 보임)라, run_tests가 씬을 리로드하며 저장 안 된 편집을 날릴 위험(FAIL#12)이 있어 스킵함. 사용자가 현재 작업을 저장한 뒤 다음 세션에서 반드시 EditMode 전체 재실행 필요
 - 이전 턴(체크포인트 커밋 d4086ac)에서 git add -A로 무관한 변경(PlayerMana.cs, ProjectSettings.asset, AdventureScene1의 SavePoint1/HealPoint, 폰트 asset)이 실수로 커밋됨 — 이번 커밋은 스코프를 스크립트 4개 파일로 좁혀서 add함
+
+
+### 추가 검증 (2026-08-17 23:1x, 같은 작업 이어서)
+- 사용자가 AdventureScene1 저장 완료(isDirty=false) 확인 후 보류했던 EditMode 전체 실행: **245/245 통과** (BoatRideLogicTests 2건 포함)
+- 테스트 실행 후 GameObject.Find("Boat")/("BoatPos") 재확인 — 둘 다 생존, Boat에 BoatRide 컴포넌트 정상 부착(FAIL#12 절차)
+- read_console(error): 0건
