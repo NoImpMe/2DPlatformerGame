@@ -7567,3 +7567,31 @@ ChestRewardConfig.icon(단일 Sprite)을 쓰는 곳 3군데 확인:
 - 사용자가 AdventureScene1 저장 완료(isDirty=false) 확인 후 보류했던 EditMode 전체 실행: **245/245 통과** (BoatRideLogicTests 2건 포함)
 - 테스트 실행 후 GameObject.Find("Boat")/("BoatPos") 재확인 — 둘 다 생존, Boat에 BoatRide 컴포넌트 정상 부착(FAIL#12 절차)
 - read_console(error): 0건
+
+
+## [구현] WebGL 빌드 리허설 — 2026-08-17 23:27
+### 프롬프트
+됐고 마무리로 WebGL로 빌드해줄래?
+### 조사
+- STATE.md 즉시 미결 #1 "WebGL 빌드 리허설"에 해당하는 작업
+- Build Settings 씬 목록(get_build_settings) 확인: TitleScene/OpeningScene/AdventureScene1~5/Ending1/CreditsScene 9개, 이미 정상 등록되어 있어 STATE.md의 "extra를 빌드 씬 목록에 추가" 항목은 그 사이 씬 개편(SecondScene_extra → AdventureScene 시리즈로 통합)으로 이미 해소된 것으로 판단
+- STATE.md "WebGL 지뢰"(SlashProjectile.cs의 NHNDemo.MonsterHealth 참조) 재확인: git ls-files로 Assets/Player/Scripts/MonsterHealth.cs가 이미 정상 추적 중(커밋 eb38757b)임을 확인 — gitignore 대상 아님, 신규 클론 컴파일 실패 위험 없음
+- 제출 전 필수 디버그 플래그 점검: Scene2DirectorConfig.debugSkipToBoss=0(정상), MinoBossConfig.showParryDebug=1(위반 발견) — showRangesInGame 필드는 현재 스크립트에 존재하지 않음(STATE.md 기록이 stale한 것으로 보임)
+### 조작 내역
+- 체크포인트 커밋(a7d66295) 직접 실행
+- Assets/Configs/MinoBossConfig.asset: showParryDebug를 SerializedObject로 true→false 수정(제출 전 필수 항목)
+- refresh_unity(compile=request, force)
+- run_tests(EditMode)
+- manage_build(action=build, target=webgl, output_path=Build/WebGL, options=[clean_build]) 실행
+- 빌드 실패 후 Logs/Editor.log 직접 열어 스택트레이스로 원인 조사
+### 검증
+- read_console(error): 0건
+- EditMode 245/245 통과
+- WebGL 빌드(job build-816b768a1a): **실패**. duration 383초, errors:1, warnings:402(대부분 무관한 Sentis 셰이더 경고)
+- Logs/Editor.log에서 확인한 실제 예외:
+  ExecutionEngineException: String conversion error: Illegal byte sequence encounted in the input.
+  at System.Reflection.RuntimeAssembly.GetCodeBase / AssemblyName.Create / RuntimeAssembly.GetName
+  at UnityEngine.InputSystem.Editor.LinkFileGenerator.GenerateAdditionalLinkXmlFile (IL2CPP link.xml 생성 단계)
+### 실패와 수정
+- **WebGL 빌드 미완료.** 원인: 프로젝트 경로 `C:\Users\Minwoo\Desktop\새 폴더\NAN2026Game`에 비ASCII(한글) 세그먼트 "새 폴더"가 포함되어 있고, Input System 패키지의 링크 XML 생성 단계에서 Mono 런타임이 어셈블리 CodeBase를 문자열로 변환하다 비ASCII 경로 바이트 시퀀스를 처리하지 못해 예외 발생 — 에디터/스크립트 수정으로 해결 불가능한 환경(파일시스템 경로) 문제로 판단, 사람의 조치(프로젝트 폴더를 ASCII 전용 경로로 이동 후 Unity 재오픈) 필요. 코드/씬 변경 없이 진단만 하고 사용자에게 보고 후 대기
+- git status에서 이번 작업과 무관한 변경 추가 발견: Assets/Prefab/재료/fonts/DOSIyagiBoldface SDF.asset(기존부터 원인불명, FAIL#34 연장선), Assets/Settings/UniversalRenderPipelineGlobalSettings.asset(이번 WebGL 빌드 시도 중 Unity가 자동 생성/수정한 것으로 추정 — 미확인 상태로 커밋 제외), Assets/Resources/PerformanceTestRunInfo.json 등 테스트 러너 미추적 산출물(add 안 함) — 이번 커밋은 MinoBossConfig.asset 한 파일만 스코프 지정하여 add

@@ -146,3 +146,9 @@
 - 증상: MinoBoss/MidBoss_FireKnight에 체력바를 붙이는 작업(스크립트 편집만 하고 AdventureScene1은 저장한 적 없음) 도중, git status에서 AdventureScene1.unity가 예기치 않게 수정됨으로 표시됨. 실제 diff를 보니 SavePoint1 프리팹 인스턴스의 오버라이드에 m_RemovedComponents(HealPoint)가 새로 추가되어 있었음. 에디터에서 AdventureScene1을 디스크로부터 재로드해도 동일하게 HealPoint가 없는 상태(isDirty=false, 즉 이게 이미 디스크 상태)로 확인됨
 - 원인: 특정 못 함. 의심 정황: 같은 세션에서 MinoBoss.cs를 anchor 편집하다 결과 검증 전에 클래스 선언부가 일시적으로 깨진 상태(`IBossHealthSourceour`)로 디스크에 저장된 적이 있었음(곧바로 직접 고침) — 이 짧은 컴파일 에러 구간에서 Unity 자동 새로고침이 무관한 열린 씬(AdventureScene1)의 프리팹 인스턴스 오버라이드에 영향을 준 것으로 추정되나 재현·확증은 못 함. 같은 세션에 ProjectSettings.asset(WebGL 스크립팅 정의 심볼 자동 추가), PlayerMana.cs(startMp 5→3, 이 세션에서 편집 안 함)도 원인 불명으로 같이 변경되어 있었음 — 전부 커밋하지 않고 그대로 둠
 - 방지 규칙: (1) script_apply_edits/apply_text_edits 적용 직후에는 곧바로 파일을 다시 읽어 결과를 검증한다 — 이번에 이 습관이 실제로 클래스 선언부 결함을 잡아냈다 (2) 스크립트를 편집하는 동안에는 관련 없는 씬을 열어두지 않는다 (3) 커밋 직전에는 반드시 git status 전체를 확인하고, 이번 작업 범위 밖의 변경(Project Settings, 무관한 씬·스크립트)이 섞여 있으면 그 파일들은 add하지 않고 사람에게 보고한다 (4) 원인 불명의 변경을 발견하면 되돌리려 하지 말고(특히 수동 배치 오브젝트) 있는 그대로 보고만 하고 판단은 사람에게 맡긴다
+
+
+## 35. WebGL 빌드가 IL2CPP 링크 단계에서 ExecutionEngineException(Illegal byte sequence)으로 실패
+- 증상: manage_build(target=webgl)가 383초 만에 실패. Logs/Editor.log에서 `ExecutionEngineException: String conversion error: Illegal byte sequence encounted in the input.`가 UnityEngine.InputSystem.Editor.LinkFileGenerator.GenerateAdditionalLinkXmlFile(Assembly.GetName/CodeBase 처리 중) 스택으로 발생. Unity 콘솔(read_console)에는 이 예외가 찍히지 않고 Editor.log에만 남음 — 콘솔만 보고 원인불명으로 넘기지 않도록 주의
+- 원인: 프로젝트 경로가 `C:\Users\Minwoo\Desktop\새 폴더\NAN2026Game`로, "새 폴더" 세그먼트에 비ASCII(한글) 문자가 포함됨. Mono 런타임이 IL2CPP link.xml 생성 중 어셈블리 CodeBase를 문자열로 변환할 때 비ASCII 경로의 바이트 시퀀스를 처리하지 못해 예외를 던지는 것으로 강하게 의심됨(에디터/코드 수정으로 해결 불가한 환경 문제)
+- 방지 규칙: WebGL(IL2CPP) 빌드 전에는 프로젝트 루트 경로에 비ASCII 문자가 없는지 먼저 확인한다. 빌드 실패 시 Unity 콘솔뿐 아니라 Logs/Editor.log를 직접 열어 ExecutionEngineException류 스택트레이스를 찾는다 — 이런 저수준 예외는 콘솔에 안 뜬다

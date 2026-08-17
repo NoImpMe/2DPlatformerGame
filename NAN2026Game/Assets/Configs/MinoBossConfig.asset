@@ -36,7 +36,7 @@ MonoBehaviour:
   fpsHit: 14
   fpsDeath: 12
   parryBuffer: 0.2
-  showParryDebug: 1
+  showParryDebug: 0
   groggyNeed: 5
   groggyTime: 3
   groggyFxOffsetY: 3.4
