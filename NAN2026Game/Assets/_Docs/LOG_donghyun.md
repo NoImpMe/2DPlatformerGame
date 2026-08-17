@@ -7539,3 +7539,25 @@ ChestRewardConfig.icon(단일 Sprite)을 쓰는 곳 3군데 확인:
 ### 실패와 수정
 - 작업 도중 git status에서 이번 작업과 무관한 변경들이 함께 발견됨: AdventureScene1.unity(SavePoint1의 HealPoint 컴포넌트가 사라짐), PlayerMana.cs(startMp 5→3), ProjectSettings.asset(WebGL 스크립팅 정의 심볼 추가), 폰트 asset 재직렬화. 전부 원인 불명 — 이번 커밋에서 제외하고 FAIL.md #34에 기록. AdventureScene1은 되돌리려 하지 않고 그대로 둠(수동 배치 오브젝트 규칙)
 - MinoBoss.cs 클래스 선언 줄 편집 중 apply_text_edits의 endCol 계산 실수로 `IBossHealthSourceour`라는 깨진 텍스트가 잠깐 저장됨 — 편집 직후 파일을 다시 읽어 발견하고 직접 수정. FAIL.md #34에 함께 기록
+
+
+## [구현] BoatRide: 플레이어 사망 시 배가 BoatPos로 복귀 — 2026-08-17 23:04
+### 프롬프트
+현재 Boat에 붙어있는 BoatRide 스크립트에 플레이어가 죽으면 Boat오브젝트가 BoatPos오브젝트 위치로 돌아오게 해줘
+### 조사
+- BoatRide.cs(AdventureScene1에서 사용)는 갑판에 탄 플레이어를 물 끝(targetX)까지 옮기기만 하고, 사망 이벤트를 구독하지 않았음
+- PlayerHealth에 이미 OnPlayerDied(체크포인트 부활 직전 1회 발행) 이벤트가 있어 그대로 재사용
+- 씬에서 Boat/BoatPos GameObject 실측: 둘 다 존재, 현재 같은 좌표(79.30, 27.74) — 배가 원위치에 정박해 있는 상태
+### 조작 내역
+- 신규: Assets/Scripts/Core/BoatRideLogic.cs(순수 로직, float 기반 — NAN2026.Core 어셈블리가 noEngineReferences=true라 Vector3 사용 불가라서 x/y float로 설계)
+- 신규: Assets/Tests/EditMode/BoatRideLogicTests.cs (2케이스)
+- Assets/Scripts/BoatRide.cs: Start()에서 PlayerHealth.OnPlayerDied 구독 + GameObject.Find("BoatPos")로 원위치 캐싱(기존 파일의 GameObject.Find("Stage_Wall") 패턴과 동일 스타일), OnDisable()에서 구독 해제, HandlePlayerDied()에서 BoatRideLogic으로 좌표 계산 후 배 위치 즉시 이동 + SetJumpLock(false)
+### 검증
+- refresh_unity(compile=request, force) -> read_console(error): 0건
+- 리플렉션으로 BoatRide/BoatRideLogic 로드 확인
+- 씬 실측: GameObject.Find("BoatPos")/("Boat") 둘 다 존재, Boat에 BoatRide 컴포넌트 부착 확인
+### 실패와 수정
+- 작업 초반 BoatRideLogic.cs에 Vector3를 썼다가 CS0246으로 컴파일 실패(NAN2026.Core.asmdef의 noEngineReferences=true를 놓침) — float x/y 오버로드로 재작성해 해결
+- 작업 도중 MCP-Unity 연결이 끊겨(원인 불명, 서버 세션 자체가 재시작된 것으로 추정 — session_id가 바뀌어 있었음) 한동안 모든 Unity 호출이 실패. 사용자가 재연결한 뒤 재개함
+- **EditMode 테스트를 이번엔 실행하지 않음** — AdventureScene1이 계속 isDirty=true 상태(사용자가 에디터에서 직접 작업 중인 것으로 보임)라, run_tests가 씬을 리로드하며 저장 안 된 편집을 날릴 위험(FAIL#12)이 있어 스킵함. 사용자가 현재 작업을 저장한 뒤 다음 세션에서 반드시 EditMode 전체 재실행 필요
+- 이전 턴(체크포인트 커밋 d4086ac)에서 git add -A로 무관한 변경(PlayerMana.cs, ProjectSettings.asset, AdventureScene1의 SavePoint1/HealPoint, 폰트 asset)이 실수로 커밋됨 — 이번 커밋은 스코프를 스크립트 4개 파일로 좁혀서 add함

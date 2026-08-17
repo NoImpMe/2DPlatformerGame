@@ -1,5 +1,6 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Tilemaps;
+using NAN2026.Core;
 
 namespace NAN2026
 {
@@ -8,16 +9,40 @@ namespace NAN2026
     {
         public BoatRideConfig config;
         private Transform player;
+        private PlayerHealth playerHealth;
+        private Transform boatHome; // BoatPos: 사망 시 배가 돌아갈 원위치 마커
         private Tilemap water;
         private float targetX;
 
         private void Start()
         {
             var p = PlayerLocator.Find();
-            if (p != null) player = p.transform;
+            if (p != null)
+            {
+                player = p.transform;
+                playerHealth = p.GetComponent<PlayerHealth>();
+                if (playerHealth != null) playerHealth.OnPlayerDied += HandlePlayerDied;
+            }
             var w = GameObject.Find("Stage_Wall");
             if (w != null) water = w.GetComponent<Tilemap>();
             targetX = ComputeWaterEndX();
+
+            var homeGO = GameObject.Find("BoatPos");
+            if (homeGO != null) boatHome = homeGO.transform;
+        }
+
+        // 플레이어가 죽으면(체크포인트 부활 전) 배를 원위치(BoatPos)로 되돌린다.
+        // 승선 중 죽어도 안전 — 배가 순간이동하면 RiderOnDeck() 거리 체크가 곧바로 false가 되어
+        // 다음 FixedUpdate에서 항해가 저절로 멈추다.
+        private void HandlePlayerDied()
+        {
+            bool hasHome = boatHome != null;
+            float homeX = hasHome ? boatHome.position.x : 0f;
+            float homeY = hasHome ? boatHome.position.y : 0f;
+            BoatRideLogic.ResetPositionOnDeath(transform.position.x, transform.position.y, hasHome, homeX, homeY,
+                out float rx, out float ry);
+            transform.position = new Vector3(rx, ry, transform.position.z);
+            SetJumpLock(false);
         }
 
         private float ComputeWaterEndX()
@@ -46,7 +71,11 @@ namespace NAN2026
         private bool jumpLockOn;
 
         // 내릴 때·씬을 떠날 때 잠금이 남지 않게 하는 안전핀 (FAIL#27: 전역 static 은 참조 카운트가 없다)
-        private void OnDisable() { SetJumpLock(false); }
+        private void OnDisable()
+        {
+            SetJumpLock(false);
+            if (playerHealth != null) playerHealth.OnPlayerDied -= HandlePlayerDied;
+        }
 
         private void SetJumpLock(bool on)
         {
