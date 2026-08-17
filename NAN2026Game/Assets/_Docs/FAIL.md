@@ -140,3 +140,9 @@
 - DH-06 SendMessage 는 인자를 1개만 넘긴다 — MonsterHealth.TakeDamage(int, Vector2) 를 SendMessage 로 불러 'Failed to call function' 예외가 났고 그 프레임 로직이 끊겨 게임이 멈춘 것처럼 보였다. DontRequireReceiver 는 수신자 부재만 봐주지 **인자 수 불일치는 예외**다. 방지: SendMessage 대상 메서드의 인자 수를 먼저 확인하고, 2개 이상이면 GetComponent 로 직접 호출한다
 
 - SendMessage는 인자를 1개만 전달한다 — TakeDamage(int, Vector2)처럼 2개 이상이면 호출 실패 에러가 나고 Error Pause와 겹치면 에디터가 멈춘다. 대상 시그니처 확인 후 직접 호출할 것
+
+
+## 34. 원인 불명: 무관한 스크립트 작업 도중 다른 씬(AdventureScene1)의 프리팹 인스턴스에서 컴포넌트가 사라짐
+- 증상: MinoBoss/MidBoss_FireKnight에 체력바를 붙이는 작업(스크립트 편집만 하고 AdventureScene1은 저장한 적 없음) 도중, git status에서 AdventureScene1.unity가 예기치 않게 수정됨으로 표시됨. 실제 diff를 보니 SavePoint1 프리팹 인스턴스의 오버라이드에 m_RemovedComponents(HealPoint)가 새로 추가되어 있었음. 에디터에서 AdventureScene1을 디스크로부터 재로드해도 동일하게 HealPoint가 없는 상태(isDirty=false, 즉 이게 이미 디스크 상태)로 확인됨
+- 원인: 특정 못 함. 의심 정황: 같은 세션에서 MinoBoss.cs를 anchor 편집하다 결과 검증 전에 클래스 선언부가 일시적으로 깨진 상태(`IBossHealthSourceour`)로 디스크에 저장된 적이 있었음(곧바로 직접 고침) — 이 짧은 컴파일 에러 구간에서 Unity 자동 새로고침이 무관한 열린 씬(AdventureScene1)의 프리팹 인스턴스 오버라이드에 영향을 준 것으로 추정되나 재현·확증은 못 함. 같은 세션에 ProjectSettings.asset(WebGL 스크립팅 정의 심볼 자동 추가), PlayerMana.cs(startMp 5→3, 이 세션에서 편집 안 함)도 원인 불명으로 같이 변경되어 있었음 — 전부 커밋하지 않고 그대로 둠
+- 방지 규칙: (1) script_apply_edits/apply_text_edits 적용 직후에는 곧바로 파일을 다시 읽어 결과를 검증한다 — 이번에 이 습관이 실제로 클래스 선언부 결함을 잡아냈다 (2) 스크립트를 편집하는 동안에는 관련 없는 씬을 열어두지 않는다 (3) 커밋 직전에는 반드시 git status 전체를 확인하고, 이번 작업 범위 밖의 변경(Project Settings, 무관한 씬·스크립트)이 섞여 있으면 그 파일들은 add하지 않고 사람에게 보고한다 (4) 원인 불명의 변경을 발견하면 되돌리려 하지 말고(특히 수동 배치 오브젝트) 있는 그대로 보고만 하고 판단은 사람에게 맡긴다

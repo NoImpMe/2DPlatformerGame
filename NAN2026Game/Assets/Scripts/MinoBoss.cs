@@ -9,7 +9,7 @@ namespace NAN2026
     // 사운드: 피격(hp가 실제로 깎이는 매 순간, 2종 랜덤)·사망(SetState(4) 진입 시)·
     // 공격 3종(atk1/atk2/dash — windup이 끝나 각 state로 실제 전환되는 순간)을
     // SetState/TakeDamage 내부에서 직접 재생한다. 수치는 config가 소유, 이 스크립트엔 숫자 리터럴 없음.
-    public class MinoBoss : MonoBehaviour
+    public class MinoBoss : MonoBehaviour, IBossHealthSource
     {
         public MinoBossConfig config;
         public Sprite[] idleF, walkF, atk1F, atk2F, hitF, deathF;
@@ -19,6 +19,10 @@ namespace NAN2026
         private MethodInfo tryParry;
         private AudioSource audioSource;
         private int hp;
+
+        public int CurrentHealth => hp;
+        public int MaxHealth => config != null ? config.maxHp : 0;
+        public event System.Action<int, int> OnHealthChanged;
         private int state; // 0 idle 1 walk 2 attack 3 hit 4 death 5 groggy 6 windup 7 dash
         private float animT, stateT, nextAtk1, nextAtk2, nextDash, holdT;
         private int pendingAttack;     // windup 종료 후 진입할 state (2=attack, 7=dash)
@@ -53,6 +57,7 @@ namespace NAN2026
             sr = GetComponent<SpriteRenderer>();
             audioSource = GetComponent<AudioSource>();
             hp = config.maxHp;
+            OnHealthChanged?.Invoke(hp, MaxHealth);
             var rbSelf = GetComponent<Rigidbody2D>();
             if (rbSelf != null) rbSelf.useFullKinematicContacts = true; // Kinematic끼리 트리거 이벤트 보장 (FAIL#트리거)
             var p = PlayerLocator.Find();
@@ -229,6 +234,7 @@ namespace NAN2026
         {
             if (state == 4) return;
             hp -= 1; // 타격 1회 = 10% 고정
+            OnHealthChanged?.Invoke(hp, MaxHealth);
             HitFeedback();
             PlayClip(config.RandomClip(config.hitClips), config.hitVolume); // hp가 실제로 깎인 매 순간, 2종 랜덤
             if (hp <= 0) { GrantXpOnce(); SetState(4); return; }

@@ -16,7 +16,7 @@ namespace NAN2026
     // 열려있는 프레임 동안 매 프레임 ParryBuffered()를 재시도하고, 창이 끝날 때까지 한 번도
     // 성공 못 하면 그제서야 피해가 확정된다. 기존 단발 판정(ResolveMeleeHit, 창 진입 첫 프레임에만
     // 1회 체크)보다 훨씬 널널하다.
-    public class MidBoss_FireKnight : MonoBehaviour, IParryReflector
+    public class MidBoss_FireKnight : MonoBehaviour, IParryReflector, IBossHealthSource
     {
         public MidBossFireKnightConfig config;
         public Sprite[] idleF, walkF, normalF, fireF, bombF, wheelF, hitF, deathF;
@@ -28,6 +28,10 @@ namespace NAN2026
         private AudioSource audioSource;
 
         private int hp;
+
+        public int CurrentHealth => hp;
+        public int MaxHealth => config != null ? config.maxHp : 0;
+        public event System.Action<int, int> OnHealthChanged;
         private int state; // 0 idle 1 walk 2 normal 3 fire 4 bomb 5 wheel 6 hit 7 death 8 groggy 9 windup
         private float animT, stateT;
         private float nextNormal, nextFire, nextBomb, nextWheel;
@@ -61,6 +65,7 @@ namespace NAN2026
             sr = GetComponent<SpriteRenderer>();
             audioSource = GetComponent<AudioSource>();
             hp = config.maxHp;
+            OnHealthChanged?.Invoke(hp, MaxHealth);
             var rbSelf = GetComponent<Rigidbody2D>();
             if (rbSelf != null) rbSelf.useFullKinematicContacts = true; // Kinematic끼리 트리거 이벤트 보장
 
@@ -232,6 +237,7 @@ namespace NAN2026
         {
             if (state == 7) return; // death
             hp -= 1;
+            OnHealthChanged?.Invoke(hp, MaxHealth);
             HitFeedback();
             PlayClip(config.hitClip, config.hitVolume); // hp가 실제로 깎인 매 순간 1회 (사망 타격 포함)
             if (hp <= 0) { SetState(7); return; }

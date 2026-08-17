@@ -7512,3 +7512,30 @@ ChestRewardConfig.icon(단일 Sprite)을 쓰는 곳 3군데 확인:
 - **사람 확인 필요**: 플레이 모드에서 실제로 Heal 증강을 골랐을 때 하트 UI가 시각적으로 기대대로 보이는지(채움/빈 하트 배치, 20칸일 때 레이아웃 줄바꿈 등)는 에디터 플레이로 직접 확인 필요
 ### 실패와 수정
 없음
+
+
+## [구현] MinoBoss/MidBoss_FireKnight에 월드 체력바 추가 — 2026-08-17 21:34
+### 프롬프트
+현재 assets/prefab/boss 폴더에 있는  MinoBoss, MidBoss_FireKnight  이 프리팹들에 worldhealthbar를 추가하고 싶은데 둘 다 EnemyAi가 없어서 잘 모르겠다 WorldHealthbar대용을 만들어도 되고 Worldhealthbar를 사용해도 되니 더 나은방법으로 체력바를 표시할 수 있게 해줘
+### 조사
+- MinoBoss.prefab(AdventureScene2에서만 사용), MidBoss_FireKnight.prefab(AdventureScene3에서만 사용) 둘 다 EnemyAI/MonsterHealth를 안 쓰고, 각자 private int hp 필드 + TakeDamage(int)로 직접 체력을 관리(공개 접근자·이벤트 없음)
+- 기존 WorldHealthBar.cs는 EnemyAIConfig + NHNDemo.MonsterHealth(공개 CurrentHealth/MaxHealth/OnHealthChanged)에 하드코딩되어 있어 이 두 보스에는 그대로 못 붙임. BossHealthBarUI.cs도 동일하게 MonsterHealth 전용
+- 두 보스 모두 Assets/Prefab/Boss/*.prefab에 손으로 배치된 인스턴스가 각 씬에 1개씩만 존재(런타임 스폰 코드 없음) — 프리팹 자체 수정 금지 규칙 때문에, 컴포넌트 추가는 각 씬의 인스턴스에 오버라이드로만 적용
+### 조작 내역
+- 신규: Assets/Scripts/IBossHealthSource.cs — EnemyAI 계열이 아닌 보스가 구현하는 최소 계약(CurrentHealth/MaxHealth/OnHealthChanged)
+- 신규: Assets/Scripts/Config/BossHealthBarConfig.cs + Assets/Configs/BossHealthBarConfig.asset — 체력바 시각 수치(오프셋/크기/색) 전용 Config, 값은 두 보스 콜라이더·스프라이트 실측 기반으로 산정(offset(0,2.4,0))
+- 신규: Assets/Scripts/BossWorldHealthBar.cs — WorldHealthBar와 동일한 SpriteRenderer 2장 직접 그리기 방식이지만 MonsterHealth 대신 IBossHealthSource를 구독. NAN2026.Core.EnemyAILogic.HealthRatio(기존 검증된 순수 함수)를 그대로 재사용해 별도 로직/테스트 불필요
+- Assets/Scripts/MinoBoss.cs: IBossHealthSource 구현 — CurrentHealth/MaxHealth 프로퍼티, OnHealthChanged 이벤트 추가, hp 초기화 시점과 TakeDamage 안 hp -= 1; 직후에 이벤트 invoke 한 줄씩만 추가(기존 로직·타이밍 변경 없음)
+- Assets/Scripts/FireKnight/MidBoss_FireKnight.cs: 동일 패턴으로 IBossHealthSource 구현
+- AdventureScene2.unity: MinoBoss 인스턴스에 BossWorldHealthBar 추가 + config 배선(인스턴스 오버라이드, 프리팹 미변경)
+- AdventureScene3.unity: MidBoss_FireKnight 인스턴스에 BossWorldHealthBar 추가 + config 배선(인스턴스 오버라이드, 프리팹 미변경)
+### 검증
+- refresh_unity(compile=request, force) -> read_console(error): 0건
+- 리플렉션으로 IBossHealthSource/MinoBoss/MidBoss_FireKnight/BossWorldHealthBar/BossHealthBarConfig 전부 로드 확인 + 두 보스 클래스가 실제로 IBossHealthSource를 구현하는지 IsAssignableFrom으로 확인
+- 각 씬 저장 -> 디스크 강제 재로드 -> BossWorldHealthBar 컴포넌트와 config 참조가 실제로 저장돼 있는지 재확인(FAIL#14 절차)
+- 두 보스 모두 world 좌표로 체력바 예상 위치를 계산해 스프라이트 상단보다 살짝 위(margin 0.3~0.4 unit)에 오는지 수치로 검증(FireKnight: 스프라이트 상단 19.21 vs 바 20.03 / MinoBoss: 스프라이트 상단 7.97 vs 바 8.35)
+- run_tests(EditMode): 243/243 통과(신규 순수 로직 없이 기존 EnemyAILogic.HealthRatio 재사용이라 테스트 추가 없음)
+- **사람 확인 필요**: 실제 플레이/씬 뷰에서 체력바가 보스 애니메이션(공격 windup 등으로 스프라이트가 커지는 프레임 포함) 중에도 자연스러운 위치에 있는지, 피격 시 실시간으로 줄어드는지 눈으로 확인 필요
+### 실패와 수정
+- 작업 도중 git status에서 이번 작업과 무관한 변경들이 함께 발견됨: AdventureScene1.unity(SavePoint1의 HealPoint 컴포넌트가 사라짐), PlayerMana.cs(startMp 5→3), ProjectSettings.asset(WebGL 스크립팅 정의 심볼 추가), 폰트 asset 재직렬화. 전부 원인 불명 — 이번 커밋에서 제외하고 FAIL.md #34에 기록. AdventureScene1은 되돌리려 하지 않고 그대로 둠(수동 배치 오브젝트 규칙)
+- MinoBoss.cs 클래스 선언 줄 편집 중 apply_text_edits의 endCol 계산 실수로 `IBossHealthSourceour`라는 깨진 텍스트가 잠깐 저장됨 — 편집 직후 파일을 다시 읽어 발견하고 직접 수정. FAIL.md #34에 함께 기록
