@@ -7595,3 +7595,16 @@ ChestRewardConfig.icon(단일 Sprite)을 쓰는 곳 3군데 확인:
 ### 실패와 수정
 - **WebGL 빌드 미완료.** 원인: 프로젝트 경로 `C:\Users\Minwoo\Desktop\새 폴더\NAN2026Game`에 비ASCII(한글) 세그먼트 "새 폴더"가 포함되어 있고, Input System 패키지의 링크 XML 생성 단계에서 Mono 런타임이 어셈블리 CodeBase를 문자열로 변환하다 비ASCII 경로 바이트 시퀀스를 처리하지 못해 예외 발생 — 에디터/스크립트 수정으로 해결 불가능한 환경(파일시스템 경로) 문제로 판단, 사람의 조치(프로젝트 폴더를 ASCII 전용 경로로 이동 후 Unity 재오픈) 필요. 코드/씬 변경 없이 진단만 하고 사용자에게 보고 후 대기
 - git status에서 이번 작업과 무관한 변경 추가 발견: Assets/Prefab/재료/fonts/DOSIyagiBoldface SDF.asset(기존부터 원인불명, FAIL#34 연장선), Assets/Settings/UniversalRenderPipelineGlobalSettings.asset(이번 WebGL 빌드 시도 중 Unity가 자동 생성/수정한 것으로 추정 — 미확인 상태로 커밋 제외), Assets/Resources/PerformanceTestRunInfo.json 등 테스트 러너 미추적 산출물(add 안 함) — 이번 커밋은 MinoBossConfig.asset 한 파일만 스코프 지정하여 add
+
+
+### 추가 진행 (2026-08-17 17:05, 같은 작업 이어서 — "이어서 진행해줘")
+- 사용자가 프로젝트 폴더를 `C:\Users\Minwoo\Desktop\새 폴더\NAN2026Game` → `C:\Users\Minwoo\Desktop\2DPlatformerGame\NAN2026Game`로 이름 변경 이동(비ASCII 경로 세그먼트 제거)
+- 재오픈 후 재시도한 WebGL 빌드 도중 Unity Editor가 크래시(버그 리포터 발생, 사용자가 창만 닫고 재오픈) — 재오픈 후 콘솔에 `Assertion failed on expression: 'hash.IsValid()'`(AssetDatabase V2 아티팩트 캐시 손상, Editor/V2/ArtifactPath.cpp) 177건 발견, 실제 CS 컴파일 에러는 없었음
+- Assets/Reimport All 실행(execute_menu_item)으로 아티팩트 캐시 정리 → read_console(error) 0건 확인, EditMode 245/245 재확인
+- manage_build(target=webgl, clean_build) 재시도 → **성공**(job build-c4ab1dbf61, 2271초/약 37.9분, 175.98MB, errors:0, warnings:472 — 전부 Sentis 패키지 셰이더 경고로 게임 로직과 무관)
+- Build/WebGL 산출물 확인: index.html(5616 bytes) + Build/ + StreamingAssets/ + TemplateData/ 정상 생성
+### 검증(추가)
+- read_console(error): Sentis 셰이더 warning 외 실제 에러 0건
+- WebGL 빌드 성공, 산출물 디렉터리 구조 확인(index.html 존재)
+### 실패와 수정(추가)
+- git status에서 이번에도 무관한 변경 발견: 폰트 asset(기존 원인불명 건 지속), UniversalRenderPipelineGlobalSettings.asset(빌드 시도 중 자동 수정 추정)에 더해 신규로 `Assets/_Recovery/`(+.meta) 발견 — 프로젝트 규약의 스테이징 금지 폴더 목록(Player/Map/Art/Screenshots/Biome 팩/_Recovery)에 이름이 정확히 일치해 커밋 대상에서 제외함. Unity 크래시 이후 자동 생성된 복구 데이터로 추정, 사람 확인 필요
