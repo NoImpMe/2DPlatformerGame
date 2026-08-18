@@ -2,7 +2,7 @@
 
 ## 현재 단계
 
-**SecondScene_extra 극암 던전 완성 → 빌드 리허설 직전 (마감 08-10)**
+**WebGL 빌드 리허설 완료 (2026-08-18) — data.unityweb 76.44MB, git push 가능. push는 사람 실행 대기 (마감 08-10)**
 
 ## 오늘 완료 (2026-08-05)
 
@@ -17,7 +17,7 @@
 
 ## 즉시 미결 (다음 세션 최우선)
 
-1. [구현] WebGL 빌드 리허설 — 선행: extra를 빌드 씬 목록에 추가(사용자 1클릭: Build Settings → Add Open Scenes)
+1. [완료] WebGL 빌드 리허설 — 2026-08-18: 텍스처 압축(298개 Compressed 전환) + WebGL 플랫폼 DXT5 오버라이드·maxTextureSize=1024 캡(111개)으로 WebGL.data.unityweb 138.77MB → 76.44MB. git push 100MB 제한 통과 확인. **사람 확인 필요**: Assets/Screenshots→_ReferenceScreenshots git mv(88항목)가 인덱스에 staged된 채 미커밋 — 스테이징 금지 목록('Screenshots') 위반이라 커밋 보류함, 사람이 직접 커밋하거나 git reset으로 되돌릴 것. git push 자체도 사람 실행
 2. 패링 판정 구분 팝업 패치(PERFECT!/MISS! + 색광 링 — MCP 단절로 미적용, 코드 준비됨)
 3. [구현] 대시 / [구현] 보스 페이즈2(패링 방어전 시나리오 반영)
 

@@ -7608,3 +7608,19 @@ ChestRewardConfig.icon(단일 Sprite)을 쓰는 곳 3군데 확인:
 - WebGL 빌드 성공, 산출물 디렉터리 구조 확인(index.html 존재)
 ### 실패와 수정(추가)
 - git status에서 이번에도 무관한 변경 발견: 폰트 asset(기존 원인불명 건 지속), UniversalRenderPipelineGlobalSettings.asset(빌드 시도 중 자동 수정 추정)에 더해 신규로 `Assets/_Recovery/`(+.meta) 발견 — 프로젝트 규약의 스테이징 금지 폴더 목록(Player/Map/Art/Screenshots/Biome 팩/_Recovery)에 이름이 정확히 일치해 커밋 대상에서 제외함. Unity 크래시 이후 자동 생성된 복구 데이터로 추정, 사람 확인 필요
+
+
+### 추가 진행 (2026-08-18 07:30, 같은 작업 이어서 — "해상도 낮춰줘 그러면")
+- 전 세션에서 적용한 111개 텍스처의 WebGL 플랫폼 오버라이드(overridden=true, DXT5) + maxTextureSize=1024 캡 조정 결과를 확인하기 위해 manage_build(target=webgl, output_path=Build/WebGL, options=[clean_build]) 재실행
+- 빌드 완료 후 Build/WebGL 하위 전체 파일을 크기순 정렬하여 개별 파일 100MB 초과 여부 확인(git push 제한이 파일 단위이므로 총합이 아닌 최대 파일 크기가 기준)
+- git -c core.quotepath=false status --porcelain 파싱하여 커밋 스코프 결정: Assets/Art/* 14개(스테이징 금지 목록 'Art' 일치)와 기존부터 원인불명이던 폰트 asset(DOSIyagiBoldface SDF), UniversalRenderPipelineGlobalSettings.asset(빌드 자동수정 추정)은 이번에도 제외. git commit에 pathspec으로 374개 텍스처 .meta 파일만 지정하여 나머지 인덱스 항목(아래 실패와 수정 참조)이 함께 커밋되지 않도록 함
+### 검증(추가)
+- read_console(error): Sentis 셰이더 warning 외 실제 에러 0건
+- manage_scene(get_active): AdventureScene1, isDirty=false
+- EditMode 245/245 통과
+- WebGL 빌드 성공(job build-da326a9904, 2044초/약 34분, 총 113.65MB, errors:0, warnings:478 — 전부 Sentis 패키지 셰이더 경고)
+- Build/WebGL/Build/WebGL.data.unityweb: 115.13MB → **76.44MB로 감소**(전 세션 텍스처 해상도 캡 적용 결과, 약 33% 추가 감소). 개별 파일 전수 확인 결과 최대 파일도 76.44MB로 git의 100MB 단일 파일 제한을 넉넉히 통과 — git push 가능 상태 확보
+- git commit -- (374개 경로) 실행 후 git status 재확인: 스코프대로 374개 텍스처 .meta만 커밋되고 나머지(Art/ 14개, Screenshots 리네임 88개 항목, 폰트/URP 설정 2개)는 인덱스/워킹트리에 그대로 남아있음을 확인
+### 실패와 수정(추가)
+- 전전 세션에서 Assets/Screenshots → _ReferenceScreenshots 로 git mv 해둔 변경(88개 항목, 빌드 크기 감소 레버로 조사했으나 무효과로 판명된 건)을 이번에도 커밋 대상에서 제외함. 이유: (1) 목표였던 100MB 미만 달성이 텍스처 압축만으로 이미 완료되어 더 이상 이 이동이 필요하지 않음 (2) 프로젝트 규약 '절대 하지 않는다' 목록에 Screenshots 폴더 스테이징이 명시적으로 금지되어 있음. 단, git mv/git rm으로 이미 인덱스에 올라간 상태를 되돌리는 작업(git reset 등)은 사람 전용 명령이라 임의로 실행하지 않고 그대로 방치함 — **사람이 직접 커밋하거나 되돌려야 함**
+- 그 외 반복 발견되는 무관 변경(폰트 asset 재직렬화, URP 전역 설정 자동수정, Assets/_Recovery/, 테스트러너 JSON 산출물)은 이전 세션과 동일하게 커밋 제외 유지 — 사람 확인 대기 중, 새로운 지시 없음
